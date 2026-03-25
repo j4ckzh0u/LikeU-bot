@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+dist/
+build/
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Testing
+coverage/
+
+# Misc
+*.bak
+*.tmp
+*.temp
+
+# Go
+go.sum
+go.mod
+vendor/
+
+# Docker
+.docker/
+
+# Build artifacts
+*.tar.gz
+*.zip

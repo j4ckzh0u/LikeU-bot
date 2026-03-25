@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BASE_URL=/api/v1
+      - VITE_WS_URL=/ws
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ai_coding?sslmode=disable
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET=dev-secret-change-in-production
+      - PORT=8080
+    volumes:
+      - ./backend:/app
+      - /app/go/pkg
+    depends_on:
+      - db
+      - redis
+    command: sh -c "go run ./cmd/server/main.go"
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      - GATEWAY_PORT=8081
+      - REDIS_URL=redis://redis:6379/0
+      - WORKSPACE_ROOT=/workspace
+    volumes:
+      - ./backend:/app
+      - workspace-data:/workspace
+
+  canvas:
+    build:
+      context: ./canvas-service
+      dockerfile: Dockerfile
+    ports:
+      - "18793:18793"
+    volumes:
+      - canvas-data:/var/ai-assistant/canvas
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=ai_coding
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
+  workspace-data:
+  canvas-data:
