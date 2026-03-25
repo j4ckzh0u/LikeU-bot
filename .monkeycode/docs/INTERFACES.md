@@ -598,7 +598,375 @@ POST /api/v1/resources/images/build
 
 ---
 
-## 12. 错误码
+## 12. 电子助理接口 (Assistant)
+
+### 12.1 Agent 管理
+
+**创建 Agent**：
+```
+POST /api/v1/assistant/agents
+```
+
+**请求体**：
+```json
+{
+  "name": "开发助手",
+  "type": "dev",
+  "config": {
+    "model": "gpt-4o",
+    "temperature": 0.7,
+    "max_tokens": 4000
+  },
+  "workspace": "/path/to/workspace"
+}
+```
+
+**Agent 类型**：dev, review, project, research, custom
+
+**Agent 列表**：
+```
+GET /api/v1/assistant/agents
+```
+
+**获取 Agent**：
+```
+GET /api/v1/assistant/agents/:id
+```
+
+**更新 Agent**：
+```
+PUT /api/v1/assistant/agents/:id
+```
+
+**删除 Agent**：
+```
+DELETE /api/v1/assistant/agents/:id
+```
+
+### 12.2 渠道管理 (Channel Manager)
+
+**创建渠道**：
+```
+POST /api/v1/assistant/channels
+```
+
+**请求体**：
+```json
+{
+  "type": "telegram",
+  "name": "我的 Telegram",
+  "config": {
+    "botToken": "xxx",
+    "allowFrom": ["123456789"]
+  },
+  "enabled": true
+}
+```
+
+**渠道类型**：web, telegram, discord, slack, whatsapp, dingtalk, feishu
+
+**渠道列表**：
+```
+GET /api/v1/assistant/channels
+```
+
+**更新渠道配置**：
+```
+PUT /api/v1/assistant/channels/:id
+```
+
+**启用/禁用渠道**：
+```
+PATCH /api/v1/assistant/channels/:id/status
+```
+
+**请求体**：
+```json
+{
+  "enabled": true
+}
+```
+
+### 12.3 会话管理 (Session)
+
+**创建会话**：
+```
+POST /api/v1/assistant/sessions
+```
+
+**请求体**：
+```json
+{
+  "agent_id": "uuid",
+  "channel": "telegram",
+  "account_id": "123456789"
+}
+```
+
+**会话列表**：
+```
+GET /api/v1/assistant/sessions
+```
+
+**Query 参数**：
+- `agent_id`：Agent ID
+- `channel`：渠道类型
+- `status`：会话状态
+
+**获取会话详情**：
+```
+GET /api/v1/assistant/sessions/:id
+```
+
+**获取会话历史**：
+```
+GET /api/v1/assistant/sessions/:id/messages
+```
+
+**Query 参数**：
+- `page`：页码
+- `page_size`：每页数量
+- `parent_id`：父消息 ID（获取回复链）
+
+**发送消息**：
+```
+POST /api/v1/assistant/sessions/:id/messages
+```
+
+**请求体**：
+```json
+{
+  "content": "帮我实现用户登录功能",
+  "parent_id": "uuid"
+}
+```
+
+**响应**（SSE 流式）：
+```
+Content-Type: text/event-stream
+
+data: {"role": "assistant", "content": "好的，我"}
+
+data: {"role": "assistant", "content": "来帮你"}
+
+data: {"role": "assistant", "content": "实现这个功能。"}
+```
+
+**清空会话历史**：
+```
+DELETE /api/v1/assistant/sessions/:id/messages
+```
+
+### 12.4 技能管理 (Skill Engine)
+
+**技能列表**：
+```
+GET /api/v1/assistant/skills
+```
+
+**响应**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "items": [
+      {
+        "id": "browser",
+        "name": "Browser",
+        "version": "1.0.0",
+        "description": "浏览器自动化技能",
+        "enabled": true,
+        "builtin": true
+      },
+      {
+        "id": "git",
+        "name": "Git",
+        "version": "1.0.0",
+        "description": "Git 操作技能",
+        "enabled": true,
+        "builtin": true
+      }
+    ],
+    "total": 10
+  }
+}
+```
+
+**安装技能**：
+```
+POST /api/v1/assistant/skills/:id/install
+```
+
+**卸载技能**：
+```
+DELETE /api/v1/assistant/skills/:id/install
+```
+
+**技能配置**：
+```
+PUT /api/v1/assistant/skills/:id/config
+```
+
+**请求体**：
+```json
+{
+  "browser": {
+    "executablePath": "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "headless": false
+  }
+}
+```
+
+### 12.5 实时画布 (Canvas)
+
+**创建画布**：
+```
+POST /api/v1/assistant/canvas
+```
+
+**响应**：
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "id": "uuid",
+    "url": "http://canvas.example.com/canvas/abc123",
+    "wsUrl": "ws://canvas.example.com/canvas/abc123"
+  }
+}
+```
+
+**获取画布**：
+```
+GET /api/v1/assistant/canvas/:id
+```
+
+**共享画布**：
+```
+POST /api/v1/assistant/canvas/:id/share
+```
+
+**请求体**：
+```json
+{
+  "user_ids": ["uuid1", "uuid2"],
+  "readonly": false
+}
+```
+
+**更新画布内容**：
+```
+PUT /api/v1/assistant/canvas/:id/content
+```
+
+**请求体**：
+```json
+{
+  "html": "<html>...",
+  "css": "...",
+  "js": "..."
+}
+```
+
+**WebSocket 画布连接**：
+```
+WS /api/v1/assistant/canvas/:id/ws
+```
+
+**消息格式**：
+```json
+{
+  "type": "update|cursor|annotation",
+  "data": {}
+}
+```
+
+### 12.6 语音服务 (Voice)
+
+**发起语音通话**：
+```
+POST /api/v1/assistant/voice/call
+```
+
+**请求体**：
+```json
+{
+  "session_id": "uuid",
+  "to": "+15555550123",
+  "mode": "voice"
+}
+```
+
+**语音通话状态**：
+```
+GET /api/v1/assistant/voice/calls/:id
+```
+
+**继续通话（发送消息）**：
+```
+POST /api/v1/assistant/voice/calls/:id/continue
+```
+
+**请求体**：
+```json
+{
+  "message": "有什么问题吗？"
+}
+```
+
+**结束通话**：
+```
+DELETE /api/v1/assistant/voice/calls/:id
+```
+
+**设置语音配置**：
+```
+PUT /api/v1/assistant/voice/config
+```
+
+**请求体**：
+```json
+{
+  "provider": "elevenlabs",
+  "apiKey": "xxx",
+  "tts": {
+    "model": "eleven_multilingual_v2",
+    "voice": "default"
+  },
+  "stt": {
+    "provider": "openai",
+    "model": "whisper-1"
+  },
+  "wakeWord": {
+    "enabled": true,
+    "word": "Hey Assistant"
+  }
+}
+```
+
+### 12.7 跨平台消息
+
+**配置跨平台消息**：
+```
+PUT /api/v1/assistant/cross-platform
+```
+
+**请求体**：
+```json
+{
+  "allowAcrossProviders": true,
+  "marker": {
+    "enabled": true,
+    "prefix": "[from {channel}] "
+  }
+}
+```
+
+---
+
+## 13. 错误码
 
 | 错误码 | 说明 |
 |--------|------|

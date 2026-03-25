@@ -280,6 +280,242 @@ const ws = new WebSocket('ws://localhost:8080/api/v1/ide/terminal/:env_id');
 
 ---
 
+## 5. 电子助理开发 (AI Assistant)
+
+### 5.1 电子助理架构
+
+电子助理模块是系统的核心创新，融合 OpenClaw 的设计理念。
+
+```
+backend/
+├── cmd/gateway/           # 电子助理网关入口
+├── internal/service/assistant/
+│   ├── channel/           # 渠道管理
+│   ├── agent/             # Agent 管理
+│   ├── skill/             # 技能引擎
+│   ├── session/           # 会话管理
+│   ├── canvas/            # 画布服务
+│   └── voice/             # 语音服务
+└── pkg/
+    ├── channel/           # 消息渠道实现
+    │   ├── telegram/
+    │   ├── discord/
+    │   └── slack/
+    └── skills/           # 技能实现
+```
+
+### 5.2 启动 Gateway 服务
+
+```bash
+cd backend
+
+# 启动 Gateway 服务（电子助理中枢）
+go run ./cmd/gateway/main.go
+
+# 或者使用 Makefile
+make gateway-run
+```
+
+Gateway 服务默认运行在 `http://localhost:8081`。
+
+### 5.3 配置电子助理
+
+创建 `backend/.env.gateway` 文件：
+
+```bash
+# Gateway 端口
+GATEWAY_PORT=8081
+
+# AI 模型配置
+OPENAI_API_KEY=sk-xxx
+ANTHROPIC_API_KEY=sk-ant-xxx
+
+# 渠道配置
+TELEGRAM_BOT_TOKEN=xxx
+DISCORD_BOT_TOKEN=xxx
+
+# 工作区配置
+WORKSPACE_ROOT=~/.ai-assistant/workspace
+
+# Canvas 配置
+CANVAS_PORT=18793
+CANVAS_ROOT=/var/ai-assistant/canvas
+
+# 语音配置
+ELEVENLABS_API_KEY=xxx
+```
+
+### 5.4 配置多平台渠道
+
+在数据库或配置文件中配置渠道：
+
+```json
+{
+  "channels": {
+    "web": { "enabled": true },
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "allowFrom": ["123456789"]
+    },
+    "discord": {
+      "enabled": true,
+      "token": "${DISCORD_BOT_TOKEN}",
+      "dm": { "allowFrom": ["123456789012345678"] }
+    }
+  }
+}
+```
+
+### 5.5 配置多 Agent
+
+```json
+{
+  "agents": {
+    "defaults": {
+      "workspace": "~/.ai-assistant/workspace",
+      "model": "gpt-4o",
+      "temperature": 0.7
+    },
+    "list": [
+      { "id": "dev", "default": true, "type": "dev" },
+      { "id": "review", "type": "review" },
+      { "id": "project", "type": "project" },
+      { "id": "research", "type": "research" }
+    ]
+  }
+}
+```
+
+### 5.6 开发自定义技能
+
+创建新技能的步骤：
+
+1. **定义技能接口**
+
+```go
+// pkg/skills/my-skill/skill.go
+package myskill
+
+type MySkill struct{}
+
+func (s *MySkill) Name() string {
+    return "my-skill"
+}
+
+func (s *MySkill) Description() string {
+    return "My custom skill"
+}
+
+func (s *MySkill) Tools() []string {
+    return []string{"read", "write"}
+}
+
+func (s *MySkill) Execute(ctx context.Context, tool string, args map[string]interface{}) (interface{}, error) {
+    switch tool {
+    case "read":
+        return s.Read(args)
+    case "write":
+        return s.Write(args)
+    default:
+        return nil, fmt.Errorf("unknown tool: %s", tool)
+    }
+}
+```
+
+2. **注册技能**
+
+在技能注册表中添加：
+
+```go
+// internal/service/assistant/skill/registry.go
+func init() {
+    RegisterSkill("my-skill", &myskill.MySkill{})
+}
+```
+
+3. **技能配置**
+
+```json
+{
+  "skills": {
+    "my-skill": {
+      "enabled": true,
+      "config": {
+        "option1": "value1"
+      }
+    }
+  }
+}
+```
+
+### 5.7 WebSocket 连接
+
+电子助理使用 WebSocket 进行实时通信：
+
+```javascript
+// 连接到 Gateway
+const ws = new WebSocket('ws://localhost:8081/api/v1/assistant/sessions/:id/ws');
+
+// 发送消息
+ws.send(JSON.stringify({
+  type: 'message',
+  content: '帮我实现登录功能'
+}));
+
+// 接收消息
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log(data.role, data.content);
+};
+```
+
+### 5.8 Canvas 画布开发
+
+启动 Canvas 服务：
+
+```bash
+cd canvas-service
+go run ./cmd/canvas/main.go
+```
+
+Canvas 服务运行在 `http://localhost:18793`。
+
+### 5.9 语音服务配置
+
+```json
+{
+  "voice": {
+    "provider": "elevenlabs",
+    "apiKey": "${ELEVENLABS_API_KEY}",
+    "tts": {
+      "model": "eleven_multilingual_v2"
+    },
+    "stt": {
+      "provider": "openai",
+      "model": "whisper-1"
+    }
+  }
+}
+```
+
+### 5.10 测试电子助理
+
+```bash
+# 测试 Gateway 连接
+curl http://localhost:8081/health
+
+# 测试 WebSocket
+wscat -c ws://localhost:8081/api/v1/assistant/sessions/:id/ws
+
+# 测试发送消息
+curl -X POST http://localhost:8081/api/v1/assistant/sessions/:id/messages \
+  -H "Content-Type: application/json" \
+  -d '{"content": "Hello"}'
+```
+
+---
+
 ## 6. 代码审查功能
 
 ### 6.1 GitHub Webhook 配置
